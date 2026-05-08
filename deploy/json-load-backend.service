@@ -1,0 +1,14 @@
+[Unit]
+Description=JSON Load Backend
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/json-load-backend/json-load-backend
+Restart=always
+RestartSec=2
+User=azureuser
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
