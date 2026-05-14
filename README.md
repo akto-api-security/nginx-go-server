@@ -20,7 +20,7 @@ Payloads are generated once at startup and reused (no per-request JSON marshalin
 
 ## Local development
 
-Requirements: [Go](https://go.dev/dl/) 1.21+.
+Requirements: [Go](https://go.dev/dl/) **1.18+** (module `go 1.18`; distro packages on Rocky 8 / EL8 are fine).
 
 ```bash
 go build -o json-load-backend .
@@ -39,6 +39,24 @@ curl -s http://127.0.0.1:9000/small | wc -c
 curl -s http://127.0.0.1:9000/medium | wc -c
 curl -s http://127.0.0.1:9000/large | wc -c
 ```
+
+## One-shot install (Ubuntu / Debian / Rocky / RHEL)
+
+On a **dedicated load-test VM** (this **replaces** `/etc/nginx/nginx.conf`; a timestamped `.bak.*` is kept):
+
+- **Debian / Ubuntu:** `apt-get` installs `golang`, `nginx`, `curl` if needed. Nginx runs as `www-data` (matches `deploy/nginx.conf`).
+- **Rocky Linux, AlmaLinux, RHEL, CentOS (Stream), Fedora:** `dnf` installs `golang`, `nginx`, `curl` if needed. The script rewrites the `user` directive to **`nginx`** so the process matches RHEL-family packages.
+
+```bash
+chmod +x install.sh
+sudo ./install.sh
+```
+
+The script builds the binary, installs it under `/opt/json-load-backend`, writes the systemd unit (runs as `SUDO_USER` or UID 1000), installs the sample nginx config, starts both services, and runs quick `curl` checks on port 80.
+
+Override the service account if needed: `INSTALL_USER=myuser sudo ./install.sh`.
+
+**Rocky / RHEL and SELinux:** If nginx returns **502** while the backend is up (`systemctl status json-load-backend`), try `sudo setsebool -P httpd_can_network_connect 1` and restart nginx.
 
 ## Production-style setup (Linux)
 
@@ -110,6 +128,7 @@ curl -I http://127.0.0.1/large
 | ---- | ------- |
 | `main.go` | Go HTTP server |
 | `go.mod` | Go module definition |
+| `install.sh` | One-shot install: apt or dnf, build, systemd, nginx, smoke checks |
 | `deploy/nginx.conf` | Sample full `nginx.conf` for high-connection proxying |
 | `deploy/json-load-backend.service` | Sample systemd unit |
 
