@@ -56,7 +56,7 @@ The script builds the binary, installs it under `/opt/json-load-backend`, writes
 
 Override the service account if needed: `INSTALL_USER=myuser sudo ./install.sh`.
 
-**Rocky / RHEL and SELinux:** If nginx returns **502** while the backend is up (`systemctl status json-load-backend`), try `sudo setsebool -P httpd_can_network_connect 1` and restart nginx.
+**Rocky / RHEL and SELinux:** With **Enforcing**, the default policy often blocks nginx from opening outbound TCP to the Go listener, so you get **502** even when `json-load-backend` is healthy. The install script runs `setsebool -P httpd_can_network_connect 1` on RHEL when `getenforce` is Enforcing. If you still see 502, confirm the app answers directly: `curl -sS http://127.0.0.1:9000/health` — if that works but port 80 does not, re-run `sudo setsebool -P httpd_can_network_connect 1` and `sudo systemctl restart nginx`, then check denials with `sudo ausearch -m avc -ts recent | tail`.
 
 ## Production-style setup (Linux)
 

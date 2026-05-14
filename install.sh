@@ -124,6 +124,23 @@ rm -f "$TMP_NGINX"
 systemctl daemon-reload
 systemctl enable --now "${SERVICE_NAME}.service"
 
+# Brief wait for Listen; then confirm backend (bypasses nginx / SELinux).
+sleep 0.5
+if ! curl -fsS -o /dev/null --connect-timeout 2 "http://127.0.0.1:9000/health" 2>/dev/null; then
+  echo "WARNING: backend not responding on 127.0.0.1:9000 — check: journalctl -u ${SERVICE_NAME} -n 50 --no-pager"
+else
+  echo "Backend OK on 127.0.0.1:9000"
+fi
+
+# With SELinux Enforcing, stock policy often denies nginx from connecting to upstream TCP (502).
+if [[ "$PKG_FAMILY" == "rhel" ]] && need_cmd getenforce; then
+  enforce="$(getenforce 2>/dev/null || true)"
+  if [[ "$enforce" == "Enforcing" ]]; then
+    echo "SELinux Enforcing: allowing web server to connect to upstream backends (fixes typical 502 to localhost)…"
+    setsebool -P httpd_can_network_connect 1
+  fi
+fi
+
 nginx -t
 systemctl restart nginx
 
