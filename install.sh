@@ -42,6 +42,32 @@ fi
 
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+# Rocky/RHEL/Alma 8 default AppStream module is often nginx:1.14; enable newest available stream (1.18–1.26).
+rhel_enable_best_nginx_stream() {
+  local vmajor=""
+  if [[ -f /etc/os-release ]]; then
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    vmajor="${VERSION_ID%%.*}"
+  fi
+  if [[ "$vmajor" != "8" ]]; then
+    return 0
+  fi
+  if ! dnf module list nginx >/dev/null 2>&1; then
+    return 0
+  fi
+  dnf module reset -y nginx || true
+  local stream
+  for stream in 1.26 1.24 1.22 1.20 1.18; do
+    if dnf module enable -y "nginx:${stream}" 2>/dev/null; then
+      echo "nginx AppStream module enabled: ${stream}"
+      return 0
+    fi
+  done
+  echo "Note: could not enable a newer nginx module stream; repos will choose the default nginx package."
+  return 0
+}
+
 install_deps() {
   case "$PKG_FAMILY" in
   debian)
@@ -62,10 +88,10 @@ install_deps() {
     fi
     ;;
   rhel)
-    if ! need_cmd go || ! need_cmd nginx || ! need_cmd curl; then
-      echo "Installing golang, nginx, curl (dnf)…"
-      dnf install -y golang nginx curl
-    fi
+    dnf -y makecache >/dev/null 2>&1 || true
+    rhel_enable_best_nginx_stream
+    echo "Installing / updating golang, nginx, curl (dnf)…"
+    dnf install -y golang nginx curl
     ;;
   esac
 }

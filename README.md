@@ -45,7 +45,7 @@ curl -s http://127.0.0.1:9000/large | wc -c
 On a **dedicated load-test VM** (this **replaces** `/etc/nginx/nginx.conf`; a timestamped `.bak.*` is kept):
 
 - **Debian / Ubuntu:** `apt-get` installs `golang`, `nginx`, `curl` if needed. Nginx runs as `www-data` (matches `deploy/nginx.conf`).
-- **Rocky Linux, AlmaLinux, RHEL, CentOS (Stream), Fedora:** `dnf` installs `golang`, `nginx`, `curl` if needed. The script rewrites the `user` directive to **`nginx`** so the process matches RHEL-family packages.
+- **Rocky Linux, AlmaLinux, RHEL, CentOS (Stream), Fedora:** `dnf` installs `golang`, `nginx`, `curl`. On **EL 8** only, the script resets the `nginx` module and enables the newest available stream (e.g. 1.22+) so you are not stuck on **nginx 1.14** from the default module. The script rewrites the `user` directive to **`nginx`** in the deployed config.
 
 ```bash
 chmod +x install.sh
@@ -55,6 +55,21 @@ sudo ./install.sh
 The script builds the binary, installs it under `/opt/json-load-backend`, writes the systemd unit (runs as `SUDO_USER` or UID 1000), installs the sample nginx config, starts both services, and runs quick `curl` checks on port 80.
 
 Override the service account if needed: `INSTALL_USER=myuser sudo ./install.sh`.
+
+**Rocky / RHEL 8 and nginx 1.14:** AppStream often defaults to the **`nginx:1.14`** module, which is very old. The install script runs **`dnf module reset nginx`** then enables the **newest available stream** among `1.26`, `1.24`, `1.22`, `1.20`, `1.18` before **`dnf install nginx`**, so you get a current nginx without adding third-party repos.
+
+To upgrade nginx manually on Rocky / Alma / RHEL **8**:
+
+```bash
+sudo dnf module list nginx
+sudo dnf module reset -y nginx
+sudo dnf module enable -y nginx:1.22
+sudo dnf install -y nginx
+nginx -v
+sudo systemctl restart nginx
+```
+
+Use **`nginx:1.24`** or **`nginx:1.26`** instead of `1.22` if `dnf module list nginx` shows them on your minor release.
 
 **Rocky / RHEL and SELinux:** With **Enforcing**, the default policy often blocks nginx from opening outbound TCP to the Go listener, so you get **502** even when `json-load-backend` is healthy. The install script runs `setsebool -P httpd_can_network_connect 1` on RHEL when `getenforce` is Enforcing. If you still see 502, confirm the app answers directly: `curl -sS http://127.0.0.1:9000/health` — if that works but port 80 does not, re-run `sudo setsebool -P httpd_can_network_connect 1` and `sudo systemctl restart nginx`, then check denials with `sudo ausearch -m avc -ts recent | tail`.
 
