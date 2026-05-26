@@ -40,12 +40,13 @@ curl -s http://127.0.0.1:9000/medium | wc -c
 curl -s http://127.0.0.1:9000/large | wc -c
 ```
 
-## One-shot install (Ubuntu / Debian / Rocky / RHEL)
+## One-shot install (Ubuntu / Debian / Rocky / RHEL / Amazon Linux 2)
 
 On a **dedicated load-test VM** (this **replaces** `/etc/nginx/nginx.conf`; a timestamped `.bak.*` is kept):
 
-- **Debian / Ubuntu:** `apt-get` installs `golang`, `nginx`, `curl` if needed. Nginx runs as `www-data` (matches `deploy/nginx.conf`).
-- **Rocky Linux, AlmaLinux, RHEL, CentOS (Stream), Fedora:** `dnf` installs `golang`, `nginx`, `curl`. On **EL 8** only, the script resets the `nginx` module and enables the newest available stream (e.g. 1.22+) so you are not stuck on **nginx 1.14** from the default module. The script rewrites the `user` directive to **`nginx`** in the deployed config.
+- **Debian / Ubuntu:** `apt-get` installs `golang`, `nginx`, `curl`. Nginx runs as `www-data` (matches `deploy/nginx.conf`).
+- **Amazon Linux 2 (EC2):** uses **`yum`** (not `dnf`). Installs **nginx** via **`amazon-linux-extras install nginx1`** (~1.22). Installs **Go** from `yum` when available, otherwise from **go.dev** (`GO_VERSION` env, default `1.22.12`). Works with **`ec2-user`** (`SUDO_USER` or UID 1000).
+- **Rocky / Alma / RHEL 8 / Amazon Linux 2023:** `dnf` (or `yum` on older trees) installs `golang`, `nginx`, `curl`. On **EL 8**, enables the newest **nginx** AppStream module when available. Deployed config uses **`user nginx`**.
 
 ```bash
 chmod +x install.sh
@@ -143,7 +144,7 @@ curl -I http://127.0.0.1/large
 | ---- | ------- |
 | `main.go` | Go HTTP server |
 | `go.mod` | Go module definition |
-| `install.sh` | One-shot install: apt or dnf, build, systemd, nginx, smoke checks |
+| `install.sh` | One-shot install: apt, yum (AL2), or dnf; build, systemd, nginx, smoke checks |
 | `deploy/nginx.conf` | Sample full `nginx.conf` for high-connection proxying |
 | `deploy/json-load-backend.service` | Sample systemd unit |
 
