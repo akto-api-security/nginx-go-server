@@ -46,7 +46,7 @@ On a **dedicated load-test VM** (this **replaces** `/etc/nginx/nginx.conf`; a ti
 
 - **Debian / Ubuntu:** `apt-get` installs `golang`, `nginx`, `curl`. Nginx runs as `www-data` (matches `deploy/nginx.conf`).
 - **Amazon Linux 2 (EC2):** **`yum`** + **`amazon-linux-extras install nginx1`**. Go from `yum` or **go.dev** fallback.
-- **Amazon Linux 2023 (EC2):** **`dnf install golang golang-bin nginx curl`**. No `amazon-linux-extras`. Sets **`httpd_can_network_connect`** when SELinux is Enforcing. Prefers **`ec2-user`** for systemd.
+- **Amazon Linux 2023 (EC2):** **`dnf install golang golang-bin nginx`** (does **not** install the `curl` package — minimal AMIs already have **`curl-minimal`**, which conflicts with `curl`). Sets **`httpd_can_network_connect`** when SELinux is Enforcing. Prefers **`ec2-user`** for systemd.
 - **Rocky / Alma / RHEL 8:** `dnf` + optional **nginx** AppStream module upgrade on EL 8. Deployed config uses **`user nginx`**.
 
 ```bash

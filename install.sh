@@ -80,6 +80,22 @@ pkg_install() {
   esac
 }
 
+# AL2023 minimal AMIs ship curl-minimal; installing the "curl" package conflicts.
+ensure_curl() {
+  if need_cmd curl; then
+    return 0
+  fi
+  if [[ "$PKG_FAMILY" == "amazonlinux2023" ]]; then
+    pkg_install curl-minimal
+  else
+    pkg_install curl
+  fi
+}
+
+ensure_tar() {
+  need_cmd tar || pkg_install tar
+}
+
 install_go_tarball() {
   local arch="amd64"
   case "$(uname -m)" in
@@ -87,7 +103,8 @@ install_go_tarball() {
   x86_64) arch="amd64" ;;
   esac
   echo "Installing Go ${GO_VERSION} from go.dev (${arch})…"
-  pkg_install curl tar
+  ensure_tar
+  ensure_curl
   local tarball="go${GO_VERSION}.linux-${arch}.tar.gz"
   curl -fsSL "https://go.dev/dl/${tarball}" -o "/tmp/${tarball}"
   rm -rf /usr/local/go
@@ -190,28 +207,33 @@ install_deps() {
   case "$PKG_FAMILY" in
   debian)
     pkg_update
-    need_cmd go || install_go
-    need_cmd nginx || install_nginx
-    need_cmd curl || pkg_install curl
+    install_go
+    install_nginx
+    ensure_curl
+    ensure_tar
     ;;
   amazonlinux2)
     pkg_update
-    pkg_install curl tar
+    ensure_curl
+    ensure_tar
     install_go
     install_nginx
     ;;
   amazonlinux2023)
     pkg_update
-    echo "Installing golang, nginx, curl (dnf)…"
-    pkg_install golang golang-bin nginx curl tar
+    echo "Installing golang, nginx (dnf); using curl-minimal if present…"
+    pkg_install golang golang-bin nginx
+    ensure_tar
     install_go
     install_nginx
     ;;
   rhel)
     pkg_update
     rhel_enable_best_nginx_stream
-    echo "Installing / updating golang, nginx, curl…"
-    pkg_install golang nginx curl tar
+    echo "Installing / updating golang, nginx…"
+    pkg_install golang nginx
+    ensure_tar
+    ensure_curl
     install_go
     install_nginx
     ;;
